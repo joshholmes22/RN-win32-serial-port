@@ -1,117 +1,84 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
+import {useState, useEffect} from 'react';
+import {Text, View, TextInput, StyleSheet, Button} from 'react-native';
 
-import React from 'react';
-import type {PropsWithChildren} from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from 'react-native';
+const App = () => {
+  const [socket, setSocket] = useState<WebSocket | null>(null);
+  const [message, setMessage] = useState('Connecting...');
+  const [receivedMessage, setReceivedMessage] = useState('');
+  const [sendMessage, setSendMessage] = useState('');
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+  useEffect(() => {
+    const newSocket = new WebSocket('ws://localhost:8080');
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
+    // Handle socket open event
+    newSocket.onopen = () => {
+      setMessage('Connected to WebSocket');
+      console.log('WebSocket connection opened.');
+    };
 
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
-}
+    // Handle incoming messages
+    newSocket.onmessage = event => {
+      console.log('Message from server:', event.data);
+      setReceivedMessage(event.data);
+    };
 
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+    // Handle socket errors
+    newSocket.onerror = error => {
+      console.error('WebSocket error:', error.message);
+      setMessage('WebSocket error');
+    };
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+    // Handle socket close event
+    newSocket.onclose = () => {
+      console.log('WebSocket connection closed.');
+      setMessage('WebSocket connection closed');
+    };
+
+    setSocket(newSocket);
+
+    return () => {
+      newSocket.close();
+    };
+  }, []);
+
+  const sendMessageFunction = () => {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      console.log(`Sending: ${sendMessage}`);
+      socket.send(sendMessage);
+      setSendMessage(''); // Clear the input after sending
+    } else {
+      console.error('WebSocket is not open. Unable to send message.');
+    }
   };
 
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
+    <View style={styles.container}>
+      <Text>{message}</Text>
+      <Text>Last Received Message: {receivedMessage}</Text>
+      <TextInput
+        style={styles.input}
+        onChangeText={setSendMessage}
+        value={sendMessage}
+        placeholder="Type your message"
       />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+      <Button
+        onPress={sendMessageFunction}
+        title="Send Message"
+        color="#841584"
+      />
+    </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
+  container: {
+    padding: 16,
   },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
+  input: {
+    height: 40,
+    margin: 12,
+    borderWidth: 1,
+    padding: 10,
   },
 });
 
