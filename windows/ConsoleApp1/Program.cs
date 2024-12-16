@@ -28,7 +28,7 @@ class Program
 
                 try
                 {
-                    InitiatePrintProcess("Hello, this is the message we want to print again... Hello, this is the message we want to print again...Hello, this is the message we want to print again...Hello, this is the message we want to print again...");
+                    InitiatePrintProcess(message);
 
                     string response = "Still going, possbily printed?";
                     // Send the response back to the WebSocket client
