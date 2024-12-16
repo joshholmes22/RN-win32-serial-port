@@ -1,12 +1,7 @@
 ﻿using System;
 using System.IO.Ports;
 using Fleck;
-using System.Net.WebSockets;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Net.Sockets;
-using System.Net;
 
 class Program
 {
@@ -33,8 +28,9 @@ class Program
 
                 try
                 {
-                    string response = InitiatePrintProcess("Hello, this is the message we want to print again... Hello, this is the message we want to print again...Hello, this is the message we want to print again...Hello, this is the message we want to print again...");
+                    InitiatePrintProcess("Hello, this is the message we want to print again... Hello, this is the message we want to print again...Hello, this is the message we want to print again...Hello, this is the message we want to print again...");
 
+                    string response = "Still going, possbily printed?";
                     // Send the response back to the WebSocket client
                     socket.Send(response);
                 }
@@ -52,9 +48,7 @@ class Program
     }
     public static void InitiatePrintProcess(string message) 
     { 
-        var path = Environment.GetFolderPath(Environment.SpecialFolder.Desktop); 
-        FileStream fs = new FileStream(path + "\\result.txt", FileMode.OpenOrCreate, FileAccess.Write); 
-        StreamWriter sw = new StreamWriter(fs); sw.BaseStream.Seek(0, SeekOrigin.End); byte[] buffer = Encoding.ASCII.GetBytes(message); 
+        byte[] buffer = Encoding.ASCII.GetBytes(message); 
         try 
         { 
             _serialPort = new SerialPort(); 
@@ -71,20 +65,15 @@ class Program
             _serialPort.ReadTimeout = 2000;            
             _serialPort.WriteTimeout = 2000;            
             _serialPort.NewLine = "\r\n";            
-            _serialPort.Write(buffer, 0, buffer.Length);            
-            sw.WriteLine("Printing done");            
-            sw.WriteLine(message);        
+            _serialPort.Write(buffer, 0, buffer.Length);    
         }        
         catch (Exception ex)        
-        {            
-            sw.WriteLine(ex.Message);            
-            sw.WriteLine(ex.StackTrace);        
+        {
+            Console.WriteLine(ex.ToString());
         }        
         finally        
         {            
-            _serialPort.Close();            
-            sw.Flush();            
-            sw.Close();        
+            _serialPort.Close();     
         }    
     }
 }
