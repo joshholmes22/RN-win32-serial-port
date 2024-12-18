@@ -1,60 +1,73 @@
-import {useState, useEffect} from 'react';
-import {Text, View, TextInput, StyleSheet, Button} from 'react-native';
+import {useState, useEffect, useCallback} from 'react';
+import {Text, View, TextInput, StyleSheet, Button, Alert} from 'react-native';
+import {NativeModules} from 'react-native';
+
+// const {ConsoleRunnerModule} = NativeModules;
 
 const App = () => {
   const [socket, setSocket] = useState<WebSocket | null>(null);
-  const [message, setMessage] = useState('Connecting...');
-  const [receivedMessage, setReceivedMessage] = useState('');
-  const [sendMessage, setSendMessage] = useState('');
+  const [connectionStatus, setConnectionStatus] = useState('Connecting...');
+  const [receivedMessage, setReceivedMessage] = useState<string>('');
+  const [sendMessage, setSendMessage] = useState<string>('');
 
   useEffect(() => {
-    const newSocket = new WebSocket('ws://localhost:8080');
+    // Start the console app on mount
 
-    // Handle socket open event
-    newSocket.onopen = () => {
-      setMessage('Connected to WebSocket');
+    // Initialize WebSocket connection
+    const webSocket = new WebSocket('ws://localhost:8080');
+
+    // WebSocket lifecycle management
+    webSocket.onopen = () => {
+      setConnectionStatus('Connected to WebSocket');
       console.log('WebSocket connection opened.');
     };
 
-    // Handle incoming messages
-    newSocket.onmessage = event => {
+    webSocket.onmessage = event => {
       console.log('Message from server:', event.data);
       setReceivedMessage(event.data);
     };
 
-    // Handle socket errors
-    newSocket.onerror = error => {
-      console.error('WebSocket error:', error.message);
-      setMessage('WebSocket error');
+    webSocket.onerror = error => {
+      console.error('WebSocket error:', error);
+      setConnectionStatus('WebSocket error. Check connection.');
+      Alert.alert('WebSocket Error', 'Unable to connect to the server.');
     };
 
-    // Handle socket close event
-    newSocket.onclose = () => {
+    webSocket.onclose = () => {
       console.log('WebSocket connection closed.');
-      setMessage('WebSocket connection closed');
+      setConnectionStatus('WebSocket connection closed');
     };
 
-    setSocket(newSocket);
+    setSocket(webSocket);
 
     return () => {
-      newSocket.close();
+      console.log('Cleaning up WebSocket and console app.');
+      webSocket.close();
+      // Optional: Add logic to kill the console app process if needed
     };
   }, []);
 
-  const sendMessageFunction = () => {
+  const sendMessageFunction = useCallback(() => {
     if (socket && socket.readyState === WebSocket.OPEN) {
       console.log(`Sending: ${sendMessage}`);
       socket.send(sendMessage);
-      setSendMessage(''); // Clear the input after sending
+      setSendMessage('');
     } else {
       console.error('WebSocket is not open. Unable to send message.');
+      Alert.alert(
+        'Error',
+        'WebSocket is not connected. Unable to send the message.',
+      );
     }
-  };
+  }, [socket, sendMessage]);
 
   return (
     <View style={styles.container}>
-      <Text>{message}</Text>
-      <Text>Last Received Message: {receivedMessage}</Text>
+      <Text style={styles.status}>{connectionStatus}</Text>
+      <Text style={styles.label}>Last Received Message:</Text>
+      <Text style={styles.message}>
+        {receivedMessage || 'No messages received yet.'}
+      </Text>
       <TextInput
         style={styles.input}
         onChangeText={setSendMessage}
@@ -64,7 +77,7 @@ const App = () => {
       <Button
         onPress={sendMessageFunction}
         title="Send Message"
-        color="#841584"
+        color="#007BFF"
       />
     </View>
   );
@@ -72,13 +85,36 @@ const App = () => {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    justifyContent: 'center',
     padding: 16,
+    backgroundColor: '#f5f5f5',
+  },
+  status: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    marginBottom: 8,
+    color: '#333',
+  },
+  message: {
+    fontSize: 16,
+    marginBottom: 16,
+    padding: 10,
+    backgroundColor: '#e9ecef',
+    borderRadius: 4,
+    color: '#495057',
   },
   input: {
     height: 40,
-    margin: 12,
+    borderColor: '#ced4da',
     borderWidth: 1,
-    padding: 10,
+    borderRadius: 4,
+    paddingHorizontal: 10,
+    marginBottom: 16,
   },
 });
 
