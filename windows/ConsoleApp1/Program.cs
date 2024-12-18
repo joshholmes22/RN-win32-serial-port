@@ -2,15 +2,28 @@
 using System.IO.Ports;
 using Fleck;
 using System.Text;
+using System.Linq;
+using System.Threading;
 
 class Program
 {
-    static SerialPort _serialPort;
+    private static SerialPort _serialPort;
+    private static readonly object _serialPortLock = new object();
+    private static WebSocketServer _server;
+
     static void Main(string[] args)
     {
+        Console.CancelKeyPress += (sender, e) =>
+        {
+            Console.WriteLine("Shutting down gracefully...");
+            _server.Dispose(); // Gracefully dispose WebSocket server
+            _serialPort?.Close(); // Close the serial port if open
+            Environment.Exit(0);
+        };
+
         // Start the WebSocket server
-        var server = new WebSocketServer("ws://0.0.0.0:8080");
-        server.Start(socket =>
+        _server = new WebSocketServer("ws://0.0.0.0:8080");
+        _server.Start(socket =>
         {
             socket.OnOpen = () =>
             {
@@ -26,13 +39,16 @@ class Program
             {
                 Console.WriteLine($"Received from WebSocket: {message}");
 
+                if (string.IsNullOrWhiteSpace(message))
+                {
+                    socket.Send("Invalid or empty message.");
+                    return;
+                }
+
                 try
                 {
-                    InitiatePrintProcess(message);
-
-                    string response = "Still going, possbily printed?";
-                    // Send the response back to the WebSocket client
-                    socket.Send(response);
+                    string result = InitiatePrintProcess(message);
+                    socket.Send(result);
                 }
                 catch (Exception ex)
                 {
@@ -43,37 +59,58 @@ class Program
         });
 
         Console.WriteLine("WebSocket server running on ws://localhost:8080");
-        Console.WriteLine("Press Enter to exit...");
-        Console.ReadLine();
+        Console.WriteLine("Press Ctrl+C to exit...");
+        Thread.Sleep(Timeout.Infinite);
     }
-    public static void InitiatePrintProcess(string message) 
-    { 
-        byte[] buffer = Encoding.ASCII.GetBytes(message); 
-        try 
-        { 
-            _serialPort = new SerialPort(); 
-            var ports = SerialPort.GetPortNames(); 
-            _serialPort.PortName = ports[0];
-            _serialPort.BaudRate = 9600; 
-            _serialPort.Parity = Parity.Even; 
-            _serialPort.StopBits = StopBits.One; 
-            _serialPort.Handshake = Handshake.RequestToSendXOnXOff; 
-            _serialPort.DataBits = 8; 
-            _serialPort.Encoding = Encoding.UTF8; 
-            _serialPort.Open(); 
+    public static string InitiatePrintProcess(string message)
+    {
+        byte[] buffer = Encoding.ASCII.GetBytes(message);
 
-            _serialPort.ReadTimeout = 2000;            
-            _serialPort.WriteTimeout = 2000;            
-            _serialPort.NewLine = "\r\n";            
-            _serialPort.Write(buffer, 0, buffer.Length);    
-        }        
-        catch (Exception ex)        
+        lock (_serialPortLock)
         {
-            Console.WriteLine(ex.ToString());
-        }        
-        finally        
-        {            
-            _serialPort.Close();     
-        }    
+            try
+            {
+                if (_serialPort == null || !_serialPort.IsOpen)
+                {
+                    InitializeSerialPort(); // Initialize and open serial port
+                }
+
+                _serialPort.Write(buffer, 0, buffer.Length); // Send data to serial port
+                Console.WriteLine("Data sent to serial port.");
+                return "Data successfully sent to the printer.";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Serial port error: {ex.Message}");
+                return $"Error: {ex.Message}";
+            }
+        }
+    }
+
+    private static void InitializeSerialPort()
+    {
+        var ports = SerialPort.GetPortNames();
+
+        if (ports.Length == 0)
+        {
+            throw new InvalidOperationException("No serial ports available on this machine.");
+        }
+
+        _serialPort = new SerialPort
+        {
+            PortName = ports.FirstOrDefault(), // Use the first available port
+            BaudRate = 9600,
+            Parity = Parity.Even,
+            StopBits = StopBits.One,
+            DataBits = 8,
+            Handshake = Handshake.RequestToSendXOnXOff,
+            Encoding = Encoding.UTF8,
+            ReadTimeout = 2000,
+            WriteTimeout = 2000,
+            NewLine = "\r\n"
+        };
+
+        _serialPort.Open();
+        Console.WriteLine($"Serial port {_serialPort.PortName} opened.");
     }
 }
