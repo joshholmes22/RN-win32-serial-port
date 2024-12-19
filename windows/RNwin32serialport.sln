@@ -5,6 +5,7 @@ VisualStudioVersion = 17.3.32929.385
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RNwin32serialport", "RNwin32serialport\RNwin32serialport.vcxproj", "{E3A13086-8864-448E-A96C-97227314FE4D}"
 	ProjectSection(ProjectDependencies) = postProject
+		{92EBB931-E930-45F6-ADDB-9F8D9441A7DD} = {92EBB931-E930-45F6-ADDB-9F8D9441A7DD}
 		{F7D32BD0-2749-483E-9A0D-1635EF7E3136} = {F7D32BD0-2749-483E-9A0D-1635EF7E3136}
 	EndProjectSection
 EndProject
