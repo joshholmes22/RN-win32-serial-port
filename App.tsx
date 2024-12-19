@@ -1,18 +1,47 @@
-import {useState, useEffect, useCallback} from 'react';
-import {Text, View, TextInput, StyleSheet, Button, Alert} from 'react-native';
-import {NativeModules} from 'react-native';
-
-// const {ConsoleRunnerModule} = NativeModules;
+import React, {useState, useEffect, useCallback} from 'react';
+import {Text, View, StyleSheet, Button, Alert} from 'react-native';
 
 const App = () => {
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [connectionStatus, setConnectionStatus] = useState('Connecting...');
   const [receivedMessage, setReceivedMessage] = useState<string>('');
-  const [sendMessage, setSendMessage] = useState<string>('');
+
+  const sendMessage = `
+        ~~~~~~~~~~~~~~~~~~~~~~~~~
+            SAM SO NAM'S KFC     
+            456 Flavor Street       
+            Edinburgh, EH2 2BB      
+            Tel: 0131 765 4321      
+        ~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Order No: #22588
+Date: 19-Dec-2024      Time: 18:20
+Server: Josh H.
+
+Table: 3        Covers: 1
+---------------------------------
+Qty    Item                  Total
+---------------------------------
+55     Burgers               £79.99
+55      Coke                  £12.49
+55      Fries                 £19.96
+---------------------------------
+Subtotal:                   £72.90
+VAT (20%):                  £14.58
+---------------------------------
+TOTAL:                      £87.48
+---------------------------------
+
+      Thank you for enjoying the best
+      chicken and donuts in town!
+      See you soon at Sam So Nam's!
+
+
+
+
+  `;
 
   useEffect(() => {
-    // Start the console app on mount
-
     // Initialize WebSocket connection
     const webSocket = new WebSocket('ws://localhost:8080');
 
@@ -51,7 +80,6 @@ const App = () => {
     if (socket && socket.readyState === WebSocket.OPEN) {
       console.log(`Sending: ${sendMessage}`);
       socket.send(sendMessage);
-      setSendMessage('');
     } else {
       console.error('WebSocket is not open. Unable to send message.');
       Alert.alert(
@@ -68,12 +96,6 @@ const App = () => {
       <Text style={styles.message}>
         {receivedMessage || 'No messages received yet.'}
       </Text>
-      <TextInput
-        style={styles.input}
-        onChangeText={setSendMessage}
-        value={sendMessage}
-        placeholder="Type your message"
-      />
       <Button
         onPress={sendMessageFunction}
         title="Send Message"

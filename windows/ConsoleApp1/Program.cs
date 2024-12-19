@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO.Ports;
+using System.ServiceProcess;
 using Fleck;
 using System.Text;
 using System.Linq;
@@ -7,34 +8,50 @@ using System.Threading;
 
 class Program
 {
-    private static SerialPort _serialPort;
-    private static readonly object _serialPortLock = new object();
-    private static WebSocketServer _server;
-
     static void Main(string[] args)
     {
-        Console.CancelKeyPress += (sender, e) =>
+        // Check if the app is running as a console or service
+        if (Environment.UserInteractive)
         {
-            Console.WriteLine("Shutting down gracefully...");
-            _server.Dispose(); // Gracefully dispose WebSocket server
-            _serialPort?.Close(); // Close the serial port if open
-            Environment.Exit(0);
-        };
+            // For manual debugging or testing, run as a console app
+            Console.WriteLine("Running as a console application...");
+            var service = new SerialPortService();
+            service.Start(); // Simulate service start
+            Console.WriteLine("Press Ctrl+C to exit...");
+            Thread.Sleep(Timeout.Infinite);
+        }
+        else
+        {
+            // Run as a Windows Service
+            ServiceBase.Run(new SerialPortService());
+        }
+    }
+}
 
-        // Start the WebSocket server
+public class SerialPortService : ServiceBase
+{
+    private static SerialPort _serialPort;
+    private static WebSocketServer _server;
+
+    public SerialPortService()
+    {
+        ServiceName = "SerialPortService";
+    }
+
+    protected override void OnStart(string[] args)
+    {
+        Console.WriteLine("Service starting...");
+        Start();
+    }
+
+    public void Start()
+    {
+        Console.WriteLine("Initializing WebSocket server...");
         _server = new WebSocketServer("ws://0.0.0.0:8080");
         _server.Start(socket =>
         {
-            socket.OnOpen = () =>
-            {
-                Console.WriteLine("WebSocket connected.");
-            };
-
-            socket.OnClose = () =>
-            {
-                Console.WriteLine("WebSocket disconnected.");
-            };
-
+            socket.OnOpen = () => Console.WriteLine("WebSocket connected.");
+            socket.OnClose = () => Console.WriteLine("WebSocket disconnected.");
             socket.OnMessage = message =>
             {
                 Console.WriteLine($"Received from WebSocket: {message}");
@@ -58,15 +75,27 @@ class Program
             };
         });
 
-        Console.WriteLine("WebSocket server running on ws://localhost:8080");
-        Console.WriteLine("Press Ctrl+C to exit...");
-        Thread.Sleep(Timeout.Infinite);
+        Console.WriteLine("WebSocket server running.");
     }
-    public static string InitiatePrintProcess(string message)
+
+    protected override void OnStop()
     {
+        Console.WriteLine("Service stopping...");
+        _server.Dispose();
+        _serialPort?.Close();
+    }
+
+    private static string InitiatePrintProcess(string message)
+    {
+
         byte[] buffer = Encoding.ASCII.GetBytes(message);
 
-        lock (_serialPortLock)
+        if (_serialPort == null)
+        {
+            InitializeSerialPort();
+        }
+
+        lock (_serialPort)
         {
             try
             {
@@ -98,7 +127,7 @@ class Program
 
         _serialPort = new SerialPort
         {
-            PortName = ports.FirstOrDefault(), // Use the first available port
+            PortName = ports.FirstOrDefault(),
             BaudRate = 9600,
             Parity = Parity.Even,
             StopBits = StopBits.One,
